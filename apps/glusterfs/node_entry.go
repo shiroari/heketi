@@ -366,3 +366,11 @@ func (n *NodeEntry) DeviceAdd(id string) {
 func (n *NodeEntry) DeviceDelete(id string) {
 	n.Devices = utils.SortedStringsDelete(n.Devices, id)
 }
+
+func NodeList(tx *bolt.Tx) ([]string, error) {
+	list := EntryKeys(tx, BOLTDB_BUCKET_NODE)
+	if list == nil {
+		return nil, ErrAccessList
+	}
+	return list, nil
+}
