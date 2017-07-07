@@ -41,6 +41,7 @@ func init() {
 	nodeCommand.AddCommand(nodeEnableCommand)
 	nodeCommand.AddCommand(nodeDisableCommand)
 	nodeCommand.AddCommand(nodeListCommand)
+	nodeCommand.AddCommand(nodeResyncCommand)
 	nodeAddCommand.Flags().IntVar(&zone, "zone", -1, "The zone in which the node should reside")
 	nodeAddCommand.Flags().StringVar(&clusterId, "cluster", "", "The cluster in which the node should reside")
 	nodeAddCommand.Flags().StringVar(&managmentHostNames, "management-host-name", "", "Management host name")
@@ -49,6 +50,7 @@ func init() {
 	nodeDeleteCommand.SilenceUsage = true
 	nodeInfoCommand.SilenceUsage = true
 	nodeListCommand.SilenceUsage = true
+	nodeResyncCommand.SilenceUsage = true
 }
 
 var nodeCommand = &cobra.Command{
@@ -306,6 +308,34 @@ var nodeInfoCommand = &cobra.Command{
 					d.Storage.Free/(1024*1024))
 			}
 		}
+		return nil
+	},
+}
+
+var nodeResyncCommand = &cobra.Command{
+	Use:     "resync [node_id]",
+	Short:   "Resync storage information on the node",
+	Long:    "Resync storage information on the node",
+	Example: "  $ heketi-cli node resync 886a86a868711bef83001",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//ensure proper number of args
+		s := cmd.Flags().Args()
+		if len(s) < 1 {
+			return errors.New("Node id missing")
+		}
+
+		// Set node id
+		nodeId := cmd.Flags().Arg(0)
+
+		// Create a client
+		heketi := client.NewClient(options.Url, options.User, options.Key)
+
+		//set url
+		err := heketi.NodeResync(nodeId)
+		if err == nil {
+			fmt.Fprintf(stdout, "Node %v updated\n", nodeId)
+		}
+
 		return nil
 	},
 }

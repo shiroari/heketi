@@ -116,6 +116,10 @@ class test_heketi(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             c.cluster_delete(cluster['id'])
 
+        # Resync node
+        resync_node = c.node_resync(node['id'])
+        self.assertEqual(True, resync_node)
+
         # Delete node
         del_node = c.node_delete(node['id'])
         self.assertEqual(True, del_node)

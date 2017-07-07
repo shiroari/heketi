@@ -276,6 +276,11 @@ func (a *App) SetRoutes(router *mux.Router) error {
 			Method:      "POST",
 			Pattern:     "/nodes/{id:[A-Fa-f0-9]+}/state",
 			HandlerFunc: a.NodeSetState},
+		rest.Route{
+			Name:        "NodeResync",
+			Method:      "GET",
+			Pattern:     "/nodes/{id:[A-Fa-f0-9]+}/resync",
+			HandlerFunc: a.NodeResync},
 
 		// Devices
 		rest.Route{

@@ -19,10 +19,11 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/heketi/heketi/pkg/glusterfs/api"
-	"github.com/heketi/heketi/pkg/utils"
 	"net/http"
 	"time"
+
+	"github.com/heketi/heketi/pkg/glusterfs/api"
+	"github.com/heketi/heketi/pkg/utils"
 )
 
 func (c *Client) NodeAdd(request *api.NodeAddRequest) (*api.NodeInfoResponse, error) {
@@ -174,5 +175,40 @@ func (c *Client) NodeState(id string, request *api.StateRequest) error {
 	if r.StatusCode != http.StatusOK {
 		return utils.GetErrorFromResponse(r)
 	}
+	return nil
+}
+
+func (c *Client) NodeResync(id string) error {
+
+	// Create a request
+	req, err := http.NewRequest("GET", c.host+"/nodes/"+id+"/resync", nil)
+	if err != nil {
+		return err
+	}
+
+	// Set token
+	err = c.setToken(req)
+	if err != nil {
+		return err
+	}
+
+	// Send request
+	r, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	if r.StatusCode != http.StatusAccepted {
+		return utils.GetErrorFromResponse(r)
+	}
+
+	// Wait for response
+	r, err = c.waitForResponseWithTimer(r, time.Millisecond*250)
+	if err != nil {
+		return err
+	}
+	if r.StatusCode != http.StatusNoContent {
+		return utils.GetErrorFromResponse(r)
+	}
+
 	return nil
 }
