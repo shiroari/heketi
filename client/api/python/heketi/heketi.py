@@ -174,6 +174,11 @@ class HeketiClient(object):
         req = self._make_request('POST', uri, state_request)
         return req.status_code == requests.codes.ok
 
+    def device_resync(self, device_id):
+        uri = '/devices/' + device_id + '/resync'
+        req = self._make_request('GET', uri)
+        return req.status_code == requests.codes.NO_CONTENT
+
     def volume_create(self, volume_options={}):
         ''' volume_options is a dict with volume creation options:
             https://github.com/heketi/heketi/wiki/API#create-a-volume

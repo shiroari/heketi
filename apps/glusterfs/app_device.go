@@ -18,6 +18,7 @@ package glusterfs
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/boltdb/bolt"
@@ -359,4 +360,98 @@ func (a *App) DeviceSetState(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+}
+
+func (a *App) DeviceResync(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	deviceId := vars["id"]
+
+	var (
+		device *DeviceEntry
+		node   *NodeEntry
+	)
+
+	// Get device info from DB
+	err := a.db.View(func(tx *bolt.Tx) error {
+		var err error
+		device, err = NewDeviceEntryFromId(tx, deviceId)
+		if err != nil {
+			return err
+		}
+		node, err = NewNodeEntryFromId(tx, device.NodeId)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err == ErrNotFound {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Err(err)
+		return
+	}
+
+	logger.Info("Checking for device %v changes", deviceId)
+
+	// Check and update device in background
+	a.asyncManager.AsyncHttpRedirectFunc(w, r, func() (seeOtherUrl string, e error) {
+
+		// Get actual device info from manage host
+		info, err := a.executor.GetDeviceInfo(node.ManageHostName(), device.Info.Name, device.Info.Id)
+		if err != nil {
+			return "", err
+		}
+
+		if device.Info.Storage.Total == info.Size {
+			logger.Info("Device %v is up to date", device.Info.Id)
+			return "", nil
+		}
+
+		logger.Debug("Device '%v' (%v) has changed %v -> %v", device.Info.Name, device.Info.Id,
+			device.Info.Storage.Total, info.Size)
+
+		newTotalSize := info.Size
+
+		// Update device
+		err = a.db.Update(func(tx *bolt.Tx) error {
+
+			// Reload device in current transaction
+			device, err := NewDeviceEntryFromId(tx, deviceId)
+			if err != nil {
+				logger.Err(err)
+				return err
+			}
+
+			newFreeSize := newTotalSize - device.Info.Storage.Used
+
+			if newFreeSize < 0 {
+				return errors.New("negative free space on device")
+			}
+
+			logger.Info("Updating device %v, total: %v -> %v, free: %v -> %v", device.Info.Name,
+				device.Info.Storage.Total, newTotalSize, device.Info.Storage.Free, newFreeSize)
+
+			device.Info.Storage.Total = newTotalSize
+			device.Info.Storage.Free = newFreeSize
+
+			// Save updated device
+			err = device.Save(tx)
+			if err != nil {
+				logger.Err(err)
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+
+		logger.Info("Updated device %v", deviceId)
+
+		return "", err
+	})
 }
