@@ -27,3 +27,5 @@ script:
 - cd client/api/python
 - ./unittests.sh
 - tox -e pep8
+before_script:
+- source .travis-fork-fix
