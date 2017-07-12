@@ -701,10 +701,10 @@ func TestDeviceSync(t *testing.T) {
 	ts := httptest.NewServer(router)
 	defer ts.Close()
 
-	var total, used, newTotal uint64
+	var total, used, newFree uint64
 	total = 200 * 1024 * 1024
 	used = 100 * 1024 * 1024
-	newTotal = 500 * 1024 * 1024 // see mockexec
+	newFree = 500 * 1024 * 1024 // see mockexec
 
 	nodeId := utils.GenUUID()
 	deviceId := utils.GenUUID()
@@ -768,8 +768,8 @@ func TestDeviceSync(t *testing.T) {
 	err = app.db.View(func(tx *bolt.Tx) error {
 		device, err := NewDeviceEntryFromId(tx, deviceId)
 		tests.Assert(t, err == nil)
-		tests.Assert(t, device.Info.Storage.Total == newTotal)
-		tests.Assert(t, device.Info.Storage.Free == newTotal-used)
+		tests.Assert(t, device.Info.Storage.Total == newFree+used)
+		tests.Assert(t, device.Info.Storage.Free == newFree)
 		tests.Assert(t, device.Info.Storage.Used == used)
 		return nil
 	})

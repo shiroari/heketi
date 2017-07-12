@@ -18,7 +18,6 @@ package glusterfs
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/boltdb/bolt"
@@ -405,15 +404,13 @@ func (a *App) DeviceResync(w http.ResponseWriter, r *http.Request) {
 			return "", err
 		}
 
-		if device.Info.Storage.Total == info.Size {
+		if device.Info.Storage.Free == info.Size {
 			logger.Info("Device %v is up to date", device.Info.Id)
 			return "", nil
 		}
 
-		logger.Debug("Device '%v' (%v) has changed %v -> %v", device.Info.Name, device.Info.Id,
-			device.Info.Storage.Total, info.Size)
-
-		newTotalSize := info.Size
+		logger.Debug("Free space of '%v' (%v) has changed %v -> %v", device.Info.Name, device.Info.Id,
+			device.Info.Storage.Free, info.Size)
 
 		// Update device
 		err = a.db.Update(func(tx *bolt.Tx) error {
@@ -425,11 +422,8 @@ func (a *App) DeviceResync(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
-			newFreeSize := newTotalSize - device.Info.Storage.Used
-
-			if newFreeSize < 0 {
-				return errors.New("negative free space on device")
-			}
+			newFreeSize := info.Size
+			newTotalSize := newFreeSize + device.Info.Storage.Used
 
 			logger.Info("Updating device %v, total: %v -> %v, free: %v -> %v", device.Info.Name,
 				device.Info.Storage.Total, newTotalSize, device.Info.Storage.Free, newFreeSize)
